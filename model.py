@@ -47,3 +47,13 @@ class NeuralNetwork:
             losses.append(loss)
             self.backward(X, y)
         return losses
+
+    def save(self, path):
+        np.savez(path, W1=self.W1, b1=self.b1, W2=self.W2, b2=self.b2)
+
+    def load(self, path):
+        data = np.load(path)
+        self.W1 = data["W1"]
+        self.b1 = data["b1"]
+        self.W2 = data["W2"]
+        self.b2 = data["b2"]

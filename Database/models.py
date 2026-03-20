@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float, DateTime
-from database import Base
+from Database.database import Base
 from datetime import datetime, UTC
 
 class Prediction(Base):
