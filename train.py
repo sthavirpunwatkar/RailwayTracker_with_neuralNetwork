@@ -38,13 +38,19 @@ def normalize(X):
 def load_from_db():
     db = SessionLocal()
 
-    rows = db.query(Prediction).filter(Prediction.actual_closing_time != None).all()
+    rows = db.query(Prediction).order_by(Prediction.created_at.desc()).limit(100).all()
     db.close()
 
     X = []
     y = []
 
     for r in rows:
+        if r.speed <= 0 or r.distance <= 0:
+            continue
+
+        if r.actual_closing_time < 0 or r.actual_closing_time > 60:
+            continue
+
         X.append([r.time, r.delay, r.speed, r.distance, r.day])
         y.append([r.actual_closing_time])
 
@@ -70,7 +76,7 @@ if __name__ == "__main__":
     losses = nn.train(X, y, epochs=1000)
     nn.save("model_weights.npz")
     print("Model Saved")
-    
+
     # Test
     preds = nn.forward(X)
 

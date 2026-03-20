@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float, DateTime
-from Database.database import Base
+from .database import Base
 from datetime import datetime, UTC
 
 class Prediction(Base):
@@ -14,6 +14,7 @@ class Prediction(Base):
     day = Column(Integer)
 
     prediction = Column(Float, nullable=True)
+    error = Column(Float,nullable=True)
     actual_closing_time = Column(Float,nullable = True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
