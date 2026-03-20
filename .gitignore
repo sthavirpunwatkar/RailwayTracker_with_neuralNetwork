@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.env
+Neural_Network_from_Scratch/.venv
