@@ -90,7 +90,9 @@ def predict(data: InputData):
         results.append({
             "gate": gate.name,
             "distance_km": distance,
-            "closing_time": pred_value
+            "closing_time": pred_value,
+            "lat": gate.latitude,
+            "lon": gate.longitude
         })
 
         #  Save each prediction
