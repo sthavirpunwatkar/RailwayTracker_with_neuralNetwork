@@ -1,66 +1,61 @@
 import streamlit as st
 import requests
-import pandas as pd
 
-st.set_page_config(page_title="Railway Gate Predictor", layout="centered")
-st.title("🚆 Railway Gate AI Predictor")
-st.markdown("### Predict gate closing time using real-time ML model")
+st.title("🚆 Railway Gate Prediction System")
 
-st.divider()
-st.write("Enter train details to predict gate closing time")
+# 🔹 Inputs
+train_number = st.text_input("Train Number", "12051")
+time = st.slider("Time (Hour)", 0, 23, 14)
+speed = st.number_input("Train Speed (km/h)", min_value=1.0, value=60.0)
 
-# Inputs
-col1, col2 = st.columns(2)
+day = st.selectbox("Day", ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+day_map = {
+    "Mon": 0, "Tue": 1, "Wed": 2,
+    "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6
+}
 
-with col1:
-    time = st.slider("Time (Hour)", 0, 23, 12)
-    train_number = st.text_input("Train Number", "12051")
-    day = st.selectbox("Day of Week", ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"])
+# 🔹 Location
+st.subheader("📍 Location")
+lat = st.number_input("Latitude", value=18.5204)
+lon = st.number_input("Longitude", value=73.8567)
 
-with col2:
-    speed = st.number_input("Train Speed (km/h)", 1, 120, 60)
-    distance = st.number_input("Distance to Gate (km)", 1, 20, 5)
+# 🔹 Predict Button
 if st.button("Predict"):
 
-    day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+    url = "http://127.0.0.1:8000/predict"
 
     data = {
         "train_number": train_number,
         "time": time,
         "speed": speed,
-        "distance": distance,
-        "day": day_map[day]
+        "day": day_map[day],
+        "lat": lat,
+        "lon": lon
     }
 
-    response = requests.post("http://127.0.0.1:8000/predict", json=data)
+    response = requests.post(url, json=data)
 
     if response.status_code == 200:
-        pred = response.json()["predicted_closing_time"]
+        result = response.json()
 
-        st.metric(label="⏱️ Predicted Closing Time", value=f"{pred:.2f} min")
-        st.info(f"🚆 Train Number Used: {train_number}")
+        st.success("✅ Prediction Successful")
 
-        if pred > 30:
-            st.warning("⚠️ Long wait expected")
-        elif pred < 10:
-            st.success("✅ Quick crossing expected")
+        predictions = result.get("predictions", [])
+        best_gate = result.get("best_gate")
 
-if st.button("Show Recent Predictions"):
-    res = requests.get("http://127.0.0.1:8000/last")
-    data = res.json()
+        # 🔥 Highlight best gate
+        if best_gate:
+            st.markdown(f"### 🏆 Best Gate: **{best_gate}**")
 
-    st.write("### Recent Predictions")
+        st.subheader("🚦 Gate Predictions")
 
-    for row in data:
-        st.write(row)
+        # 🔥 Display all gates
+        for r in predictions:
+            st.metric(
+                label=f"🚆 {r['gate']}",
+                value=f"{r['closing_time']:.2f} min",
+                delta=f"{r['distance_km']:.2f} km"
+            )
 
-
-
-if st.button("Show Error Trend"):
-    res = requests.get("http://127.0.0.1:8000/last")
-    data = res.json()
-
-    df = pd.DataFrame(data)
-
-    if "error" in df:
-        st.line_chart(df["error"])
+    else:
+        st.error("❌ API Error")

@@ -27,3 +27,15 @@ def find_nearest_gate(user_lat, user_lon, gates):
             nearest = g
 
     return nearest, min_dist
+
+def get_nearest_gates(user_lat, user_lon, gates, k=3):
+    distances = []
+
+    for g in gates:
+        dist = calculate_distance(user_lat, user_lon, g.latitude, g.longitude)
+        distances.append((g, dist))
+
+    # sort by distance
+    distances.sort(key=lambda x: x[1])
+
+    return distances[:k]   # return top k gates

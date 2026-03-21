@@ -7,7 +7,7 @@ from db.database import SessionLocal
 from db.models import Prediction, RailwayGate
 
 from app.services.railway_api import get_train_status
-from app.services.location import find_nearest_gate
+from app.services.location import get_nearest_gates
 
 app = FastAPI()
 
@@ -46,67 +46,72 @@ def predict(data: InputData):
 
     db = SessionLocal()
 
-    #  1. Get nearest gate
+    #  1. Get nearest gates (LIST)
     gates = db.query(RailwayGate).all()
-    nearest_gate, distance = find_nearest_gate(data.lat, data.lon, gates)
-
-    print(" Nearest Gate:", nearest_gate.name)
-    print(" Distance:", distance)
+    nearest_gates = get_nearest_gates(data.lat, data.lon, gates, k=3)
 
     #  2. Get delay from API
     status = get_train_status(data.train_number)
     delay = status["delay"]
 
-    print(" API Delay:", delay)
+    print("API Delay:", delay)
 
     #  3. Feature engineering
     is_peak = 1 if (8 <= data.time <= 11 or 17 <= data.time <= 20) else 0
-    travel_time = (distance / data.speed) * 60 if data.speed > 0 else 0
 
-    #  4. Build input
-    X = np.array([[
-        data.time,
-        delay,
-        data.speed,
-        distance,
-        data.day,
-        is_peak,
-        travel_time
-    ]])
+    results = []
 
-    print(" RAW INPUT:", X)
+    #  4. Loop through each gate
+    for gate, distance in nearest_gates:
 
-    #  5. Normalize
-    X = normalize(X)
+        print("Gate:", gate.name, "Distance:", distance)
 
-    print(" NORMALIZED INPUT:", X)
+        travel_time = (distance / data.speed) * 60 if data.speed > 0 else 0
 
-    #  6. Predict
-    pred = nn.forward(X)
-    pred_value = float(pred[0][0])
+        X = np.array([[
+            data.time,
+            delay,
+            data.speed,
+            distance,
+            data.day,
+            is_peak,
+            travel_time
+        ]])
 
-    # Clamp output
-    pred_value = max(0, min(60, pred_value))
+        # Normalize
+        X = normalize(X)
 
-    #  7. Save to DB
-    new_entry = Prediction(
-        time=data.time,
-        delay=delay,
-        speed=data.speed,
-        distance=distance,
-        day=data.day,
-        prediction=pred_value
-    )
+        # Predict
+        pred = nn.forward(X)
+        pred_value = float(pred[0][0])
 
-    gate_name = nearest_gate.name
-    dist_val = distance
-    db.add(new_entry)
+        pred_value = max(0, min(60, pred_value))
+
+        results.append({
+            "gate": gate.name,
+            "distance_km": distance,
+            "closing_time": pred_value
+        })
+
+        #  Save each prediction
+        new_entry = Prediction(
+            time=data.time,
+            delay=delay,
+            speed=data.speed,
+            distance=distance,
+            day=data.day,
+            prediction=pred_value
+        )
+        db.add(new_entry)
+
+    #  commit ONCE
     db.commit()
     db.close()
 
+    #  sort results
+    results.sort(key=lambda x: x["closing_time"])
+
     return {
-        "predicted_closing_time": pred_value,
-        "nearest_gate": gate_name,
-        "distance_km": dist_val,
-        "delay_used": delay
+        "predictions": results,
+        "best_gate": results[0]["gate"] if results else None
     }
