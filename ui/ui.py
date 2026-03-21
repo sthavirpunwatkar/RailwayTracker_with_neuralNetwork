@@ -1,11 +1,16 @@
 import streamlit as st
 import requests
 import pandas as pd
-import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Railway Gate Predictor", layout="wide")
 
 st.title("🚆 Railway Gate Prediction System")
+
+# 🔥 Session state (VERY IMPORTANT)
+if "result" not in st.session_state:
+    st.session_state.result = None
 
 # 🔹 Inputs
 train_number = st.text_input("Train Number", "12051")
@@ -46,79 +51,62 @@ if st.button("Predict"):
         response = requests.post(url, json=data)
 
         if response.status_code == 200:
-            result = response.json()
-
-            st.success("✅ Prediction Successful")
-
-            predictions = result.get("predictions", [])
-            best_gate = result.get("best_gate")
-
-            # 🔥 Best Gate Highlight
-            if best_gate:
-                st.markdown(f"## 🏆 Best Gate: **{best_gate}**")
-
-            st.subheader("🚦 Gate Predictions")
-
-            # 🔥 Metrics
-            cols = st.columns(len(predictions)) if predictions else []
-
-            for i, r in enumerate(predictions):
-                with cols[i]:
-                    st.metric(
-                        label=f"🚆 {r['gate']}",
-                        value=f"{r['closing_time']:.2f} min",
-                        delta=f"{r['distance_km']:.2f} km"
-                    )
-
-            # 🔥 MAP (pydeck)
-            if predictions:
-
-                map_data = []
-
-                # user location
-                map_data.append({
-                    "latitude": float(lat),
-                    "longitude": float(lon),
-                    "type": "User"
-                })
-
-                # gate locations
-                for r in predictions:
-                    if r.get("lat") is not None and r.get("lon") is not None:
-                        map_data.append({
-                            "latitude": float(r["lat"]),
-                            "longitude": float(r["lon"]),
-                            "type": r["gate"]
-                        })
-
-                df = pd.DataFrame(map_data)
-
-                st.subheader("🗺️ Map View")
-
-                layer = pdk.Layer(
-                    "ScatterplotLayer",
-                    data=df,
-                    get_position='[longitude, latitude]',
-                    get_color='[200, 30, 0, 160]',
-                    get_radius=200,
-                )
-
-                view_state = pdk.ViewState(
-                    latitude=df["latitude"].mean(),
-                    longitude=df["longitude"].mean(),
-                    zoom=12,
-                    pitch=0,
-                )
-
-                deck = pdk.Deck(
-                    layers=[layer],
-                    initial_view_state=view_state,
-                )
-
-                st.pydeck_chart(deck)
-
+            st.session_state.result = response.json()
         else:
             st.error("❌ API Error")
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
+
+
+# 🔥 DISPLAY RESULTS (AFTER BUTTON)
+result = st.session_state.result
+
+if result:
+
+    predictions = result.get("predictions", [])
+    best_gate = result.get("best_gate")
+
+    st.success("✅ Prediction Successful")
+
+    # 🔥 Best Gate
+    if best_gate:
+        st.markdown(f"## 🏆 Best Gate: **{best_gate}**")
+
+    st.subheader("🚦 Gate Predictions")
+
+    # 🔥 Metrics
+    cols = st.columns(len(predictions)) if predictions else []
+
+    for i, r in enumerate(predictions):
+        with cols[i]:
+            st.metric(
+                label=f"🚆 {r['gate']}",
+                value=f"{r['closing_time']:.2f} min",
+                delta=f"{r['distance_km']:.2f} km"
+            )
+
+    # 🔥 MAP (FOLIUM — STABLE)
+    if predictions:
+
+        st.subheader("🗺️ Map View")
+
+        m = folium.Map(location=[lat, lon], zoom_start=12)
+
+        # 🔵 User marker
+        folium.Marker(
+            [lat, lon],
+            tooltip="User Location",
+            icon=folium.Icon(color="blue")
+        ).add_to(m)
+
+        # 🔴 Gate markers
+        for r in predictions:
+            if r.get("lat") and r.get("lon"):
+                folium.Marker(
+                    [r["lat"], r["lon"]],
+                    tooltip=f"{r['gate']} ({r['closing_time']:.2f} min)",
+                    icon=folium.Icon(color="red")
+                ).add_to(m)
+
+        st_folium(m, width=700, height=500)
