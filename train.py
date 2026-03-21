@@ -30,7 +30,10 @@ def load_from_db():
         if r.speed <= 0 or r.distance <= 0:
             continue
 
-        if r.actual_closing_time < 0 or r.actual_closing_time > 60:
+        if r.actual_closing_time is None :
+            continue
+
+        if not ( 0 <= r.actual_closing_time <= 60):
             continue
 
         if abs(r.error) > 20:

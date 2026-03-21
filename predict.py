@@ -1,5 +1,6 @@
 import numpy as np
 from model import NeuralNetwork
+import pickle
 
 # same normalize function
 def normalize(X):
@@ -19,9 +20,9 @@ nn = NeuralNetwork(7, 12, 1)
 nn.load("model_weights.npz")
 
 # sample input
-X = np.array([[14, 10, 60, 5, 2]])
+X_input = np.array([[14, 10, 60, 5, 2]])
 
-X = normalize(X)
+X = normalize(X_input)
 
 prediction = nn.forward(X)
 
