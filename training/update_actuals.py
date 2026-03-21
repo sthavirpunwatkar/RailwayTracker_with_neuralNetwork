@@ -1,5 +1,5 @@
-from Database.database import SessionLocal
-from Database.models import Prediction
+from db.database import SessionLocal
+from db.models import Prediction
 
 db = SessionLocal()
 

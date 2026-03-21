@@ -1,4 +1,8 @@
- numpy
-matplotlib
-scikit-learn
+fastapi
+uvicorn
+numpy
 streamlit
+requests
+sqlalchemy
+psycopg2-binary
+pydantic

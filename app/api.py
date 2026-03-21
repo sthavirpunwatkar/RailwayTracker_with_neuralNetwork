@@ -2,10 +2,10 @@ from dataclasses import Field
 
 from fastapi import FastAPI
 import numpy as np
-from model import NeuralNetwork
+from model.model import NeuralNetwork
 from pydantic import BaseModel
-from Database.database import SessionLocal
-from Database.models import Prediction
+from db.database import SessionLocal
+from db.models import Prediction
 
 app = FastAPI()
 

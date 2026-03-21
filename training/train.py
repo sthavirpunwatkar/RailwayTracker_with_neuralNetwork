@@ -1,7 +1,7 @@
 import numpy as np
-from model import NeuralNetwork
-from Database.database import SessionLocal
-from Database.models import Prediction
+from model.model import NeuralNetwork
+from db.database import SessionLocal
+from db.models import Prediction
 
 
 #  Normalize function (VERY IMPORTANT)
