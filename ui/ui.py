@@ -14,7 +14,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     time = st.slider("Time (Hour)", 0, 23, 12)
-    delay = st.number_input("Delay (minutes)", 0, 60, 5)
+    train_number = st.text_input("Train Number", "12051")
     day = st.selectbox("Day of Week", ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"])
 
 with col2:
@@ -25,8 +25,8 @@ if st.button("Predict"):
     day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
 
     data = {
+        "train_number": train_number,
         "time": time,
-        "delay": delay,
         "speed": speed,
         "distance": distance,
         "day": day_map[day]
@@ -38,6 +38,7 @@ if st.button("Predict"):
         pred = response.json()["predicted_closing_time"]
 
         st.metric(label="⏱️ Predicted Closing Time", value=f"{pred:.2f} min")
+        st.info(f"🚆 Train Number Used: {train_number}")
 
         if pred > 30:
             st.warning("⚠️ Long wait expected")

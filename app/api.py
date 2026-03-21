@@ -6,14 +6,15 @@ from model.model import NeuralNetwork
 from pydantic import BaseModel
 from db.database import SessionLocal
 from db.models import Prediction
+from app.services.railway_api import get_train_status
 
 app = FastAPI()
 
 class InputData(BaseModel):
+    train_number: str
     time: float
-    delay: float
-    speed: float = Field
-    distance: float = Field
+    speed: float
+    distance: float
     day: int
 
 def normalize(X):
@@ -21,8 +22,9 @@ def normalize(X):
     X[:,0] /= 24
     X[:,1] /= 60
     X[:,2] /= 120
-    X[:,3] /= 15
+    X[:,3] /= 25
     X[:,4] /= 6
+    X[:,6] /= 60
     return X
 
 # load model once (important)
@@ -37,17 +39,21 @@ def home():
 
 @app.post("/predict")
 def predict(data: InputData):
-    #safety to avoid crash
-    if data.speed <= 0 or data.distance <= 0:
-        return {"error": "speed and distance must be > 0"}
+    # new Feature
+    status = get_train_status(data.train_number)
+    delay = status.get("delay", 0)
 
-    #new Feature
+    #fallback if API fails
+    if delay is None:
+        delay = 5  #default estimate
+
+    #distance and peak logic manual
     is_peak = 1 if ( 8 <= data.time <=11 or 17 <= data.time <= 20 ) else 0
     travel_time = data.distance / data.time
 
     X = np.array([[
         data.time,
-        data.delay,
+        delay,
         data.speed,
         data.distance,
         data.day,
@@ -65,7 +71,7 @@ def predict(data: InputData):
 
     record  = Prediction(
         time=data.time,
-        delay=data.delay,
+        delay = delay,
         speed=data.speed,
         distance=data.distance,
         day=data.day,
