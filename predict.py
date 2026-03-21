@@ -13,7 +13,7 @@ def normalize(X):
 
 
 # create model (same shape as training)
-nn = NeuralNetwork(5, 8, 1)
+nn = NeuralNetwork(7, 12, 1)
 
 # load trained weights
 nn.load("model_weights.npz")

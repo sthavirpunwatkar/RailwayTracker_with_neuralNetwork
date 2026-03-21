@@ -12,29 +12,10 @@ def normalize(X):
     X[:, 2] /= 120
     X[:, 3] /= 15
     X[:, 4] /= 6
+    X[:, 5] /= 1
+    X[:, 6] /= 1
     # is_peak (index 5) → already 0 or 1 → no change needed
     return X
-
-
-# # 🔥 Temporary dataset (we will replace with DB later)
-# def get_data():
-#     X = np.array([
-#         [12, 10, 60, 5, 2],
-#         [18, 5, 80, 3, 4],
-#         [9, 0, 50, 7, 1],
-#         [15, 20, 70, 2, 3],
-#         [20, 15, 90, 4, 5],
-#     ])
-#
-#     y = np.array([
-#         [8],
-#         [3],
-#         [10],
-#         [5],
-#         [4],
-#     ])
-#
-#     return X, y
 
 def load_from_db():
     db = SessionLocal()
@@ -51,8 +32,19 @@ def load_from_db():
 
         if r.actual_closing_time < 0 or r.actual_closing_time > 60:
             continue
+
         is_peak = 1 if (8 <= r.time <= 11 or 17 <= r.time <= 20) else 0
-        X.append([r.time, r.delay, r.speed, r.distance, r.day, is_peak])
+        travel_time = r.distance / r.speed if r.speed > 0 else 0
+
+        (X.append([
+            r.time,
+            r.delay,
+            r.speed,
+            r.distance,
+            r.day,
+            is_peak,
+            travel_time
+        ]))
         y.append([r.actual_closing_time])
 
     return np.array(X), np.array(y)
@@ -71,7 +63,7 @@ if __name__ == "__main__":
     X = normalize(X)
 
     # Create model
-    nn = NeuralNetwork(input_size=6, hidden_size=8, output_size=1, lr=0.01)
+    nn = NeuralNetwork(input_size=7, hidden_size=12, output_size=1, lr=0.01)
 
     # Train
     losses = nn.train(X, y, epochs=1000)

@@ -37,17 +37,22 @@ def home():
 
 @app.post("/predict")
 def predict(data: InputData):
+    #safety to avoid crash
     if data.speed <= 0 or data.distance <= 0:
         return {"error": "speed and distance must be > 0"}
+
     #new Feature
     is_peak = 1 if ( 8 <= data.time <=11 or 17 <= data.time <= 20 ) else 0
+    travel_time = data.distance / data.time
+
     X = np.array([[
         data.time,
         data.delay,
         data.speed,
         data.distance,
         data.day,
-        is_peak
+        is_peak,
+        travel_time
     ]])
 
     X = normalize(X)
