@@ -4,7 +4,7 @@ from Database.database import SessionLocal
 from Database.models import Prediction
 
 
-# 🔥 Normalize function (VERY IMPORTANT)
+#  Normalize function (VERY IMPORTANT)
 def normalize(X):
     X = X.astype(float)
     X[:, 0] /= 24
@@ -31,6 +31,9 @@ def load_from_db():
             continue
 
         if r.actual_closing_time < 0 or r.actual_closing_time > 60:
+            continue
+
+        if abs(r.error) > 20:
             continue
 
         is_peak = 1 if (8 <= r.time <= 11 or 17 <= r.time <= 20) else 0

@@ -34,9 +34,9 @@ class NeuralNetwork:
         dW1 = (1/m) * np.dot(X.T, dz1)
         db1 = (1/m) * np.sum(dz1, axis=0, keepdims=True)
 
-        self.W1 -= self.lr * dW1
+        self.W1 -= self.lr * dW1 + 0.0001 * self.W1
         self.b1 -= self.lr * db1
-        self.W2 -= self.lr * dW2
+        self.W2 -= self.lr * dW2 + 0.0001 * self.W2
         self.b2 -= self.lr * db2
 
     def train(self, X, y, epochs=1000):
