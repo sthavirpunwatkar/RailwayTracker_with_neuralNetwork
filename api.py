@@ -26,7 +26,7 @@ def normalize(X):
     return X
 
 # load model once (important)
-nn = NeuralNetwork(5, 8, 1)
+nn = NeuralNetwork(6, 8, 1)
 nn.load("model_weights.npz")
 
 
@@ -39,12 +39,15 @@ def home():
 def predict(data: InputData):
     if data.speed <= 0 or data.distance <= 0:
         return {"error": "speed and distance must be > 0"}
+    #new Feature
+    is_peak = 1 if ( 8 <= data.time <=11 or 17 <= data.time <= 20 ) else 0
     X = np.array([[
         data.time,
         data.delay,
         data.speed,
         data.distance,
-        data.day
+        data.day,
+        is_peak
     ]])
 
     X = normalize(X)

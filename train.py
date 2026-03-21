@@ -12,6 +12,7 @@ def normalize(X):
     X[:, 2] /= 120
     X[:, 3] /= 15
     X[:, 4] /= 6
+    # is_peak (index 5) → already 0 or 1 → no change needed
     return X
 
 
@@ -50,8 +51,8 @@ def load_from_db():
 
         if r.actual_closing_time < 0 or r.actual_closing_time > 60:
             continue
-
-        X.append([r.time, r.delay, r.speed, r.distance, r.day])
+        is_peak = 1 if (8 <= r.time <= 11 or 17 <= r.time <= 20) else 0
+        X.append([r.time, r.delay, r.speed, r.distance, r.day, is_peak])
         y.append([r.actual_closing_time])
 
     return np.array(X), np.array(y)
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     X = normalize(X)
 
     # Create model
-    nn = NeuralNetwork(input_size=5, hidden_size=8, output_size=1, lr=0.01)
+    nn = NeuralNetwork(input_size=6, hidden_size=8, output_size=1, lr=0.01)
 
     # Train
     losses = nn.train(X, y, epochs=1000)
