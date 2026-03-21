@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, Float, DateTime
-from .database import Base
+from sqlalchemy import Column, Integer, Float, DateTime, String
+from db.database import Base
 from datetime import datetime, UTC
 
 class Prediction(Base):
@@ -18,3 +18,11 @@ class Prediction(Base):
     actual_closing_time = Column(Float,nullable = True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+class RailwayGate(Base):
+    __tablename__ = "railway_gates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    latitude = Column(Float)
+    longitude = Column(Float)

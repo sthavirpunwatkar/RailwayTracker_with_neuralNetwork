@@ -1,102 +1,112 @@
-from dataclasses import Field
-
 from fastapi import FastAPI
-import numpy as np
-from model.model import NeuralNetwork
 from pydantic import BaseModel
+import numpy as np
+
+from model.model import NeuralNetwork
 from db.database import SessionLocal
-from db.models import Prediction
+from db.models import Prediction, RailwayGate
+
 from app.services.railway_api import get_train_status
+from app.services.location import find_nearest_gate
 
 app = FastAPI()
 
+# Load model
+nn = NeuralNetwork(7, 12, 1)
+nn.load("model_weights.npz")
+
+
+#  Input schema
 class InputData(BaseModel):
     train_number: str
     time: float
     speed: float
-    distance: float
     day: int
+    lat: float
+    lon: float
 
+
+#  Normalize function (SAME as training)
 def normalize(X):
     X = X.astype(float)
-    X[:,0] /= 24
-    X[:,1] /= 60
-    X[:,2] /= 120
-    X[:,3] /= 25
-    X[:,4] /= 6
-    X[:,6] /= 60
+
+    X[:, 0] /= 24     # time
+    X[:, 1] /= 60     # delay
+    X[:, 2] /= 120    # speed
+    X[:, 3] /= 25     # distance (updated)
+    X[:, 4] /= 6      # day
+    # X[:,5] is_peak → no change
+    X[:, 6] /= 60     # travel_time
+
     return X
-
-# load model once (important)
-nn = NeuralNetwork(6, 8, 1)
-nn.load("model_weights.npz")
-
-
-@app.get("/")
-def home():
-    return {"message": "Railway NN API running"}
 
 
 @app.post("/predict")
 def predict(data: InputData):
-    # new Feature
+
+    db = SessionLocal()
+
+    #  1. Get nearest gate
+    gates = db.query(RailwayGate).all()
+    nearest_gate, distance = find_nearest_gate(data.lat, data.lon, gates)
+
+    print(" Nearest Gate:", nearest_gate.name)
+    print(" Distance:", distance)
+
+    #  2. Get delay from API
     status = get_train_status(data.train_number)
-    delay = status.get("delay", 0)
+    delay = status["delay"]
 
-    #fallback if API fails
-    if delay is None:
-        delay = 5  #default estimate
+    print(" API Delay:", delay)
 
-    #distance and peak logic manual
-    is_peak = 1 if ( 8 <= data.time <=11 or 17 <= data.time <= 20 ) else 0
-    travel_time = data.distance / data.time
+    #  3. Feature engineering
+    is_peak = 1 if (8 <= data.time <= 11 or 17 <= data.time <= 20) else 0
+    travel_time = (distance / data.speed) * 60 if data.speed > 0 else 0
 
+    #  4. Build input
     X = np.array([[
         data.time,
         delay,
         data.speed,
-        data.distance,
+        distance,
         data.day,
         is_peak,
         travel_time
     ]])
 
+    print(" RAW INPUT:", X)
+
+    #  5. Normalize
     X = normalize(X)
 
+    print(" NORMALIZED INPUT:", X)
+
+    #  6. Predict
     pred = nn.forward(X)
-    pred_value = max( 0 , min(60, float(pred[0][0])))
+    pred_value = float(pred[0][0])
 
-    #store in db
-    db = SessionLocal()
+    # Clamp output
+    pred_value = max(0, min(60, pred_value))
 
-    record  = Prediction(
+    #  7. Save to DB
+    new_entry = Prediction(
         time=data.time,
-        delay = delay,
+        delay=delay,
         speed=data.speed,
-        distance=data.distance,
+        distance=distance,
         day=data.day,
-        prediction=pred_value)
+        prediction=pred_value
+    )
 
-    db.add(record)
+    gate_name = nearest_gate.name
+    dist_val = distance
+    db.add(new_entry)
     db.commit()
     db.close()
-    return {"predicted_closing_time": pred_value}
 
-@app.get("/last")
-def last_predictions():
-    db = SessionLocal()
-
-    rows = db.query(Prediction).order_by(
-        Prediction.id.desc()
-    ).limit(5).all()
-
-    db.close()
-
-    return [
-        {
-            "prediction": r.prediction,
-            "actual": r.actual_closing_time,
-            "error": r.error
-        }
-        for r in rows
-    ]
+    return {
+        "predicted_closing_time": pred_value,
+        "nearest_gate": gate_name,
+        "distance_km": dist_val,
+        "delay_used": delay
+    }

@@ -8,28 +8,36 @@ API_KEY = os.getenv("RAPIDAPI_KEY")
 URL = "https://indian-railway-irctc.p.rapidapi.com/api/trains/v1/train/status"
 
 def calculate_delay(stations):
+    max_delay = 0
+
     for stn in stations:
-        if "arrivalTime" in stn and "actual_arrival_time" in stn:
+            scheduled = stn.get("arrivalTime")
+            actual = stn.get("actual_arrival_time")
 
-            scheduled = stn["arrivalTime"]
-            actual = stn["actual_arrival_time"]
+            if not scheduled or not actual:
+                continue
+            try:
+                fmt = "%H:%M"
 
-            if scheduled and actual:
-                try:
-                    fmt = "%H:%M"
+                t1 = datetime.strptime(scheduled, fmt)
+                t2 = datetime.strptime(actual, fmt)
 
-                    t1 = datetime.strptime(scheduled, fmt)
-                    t2 = datetime.strptime(actual, fmt)
+                delay = (t2 - t1).total_seconds() / 60
 
-                    delay = (t2 - t1).total_seconds() / 60
+                if delay < 0:
+                    delay = 0
 
-                    if delay > 0:
-                        return delay
+                if delay > max_delay:
+                    max_delay = delay
 
-                except:
-                    continue
+            except Exception as e:
+                continue
 
-    return 0
+    if max_delay == 0:
+        max_delay = 2
+
+
+    return max_delay
 
 def get_train_status(train_number):
     today = datetime.now().strftime("%Y%m%d")

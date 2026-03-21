@@ -1,5 +1,5 @@
-from database import engine
-from models import Base
+from db.database import  engine
+from db.models import Base
 
 Base.metadata.create_all(bind=engine)
 print("Table create successfully")
